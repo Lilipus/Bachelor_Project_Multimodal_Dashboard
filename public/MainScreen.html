@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Investing Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <script src="https://cdn.jsdelivr.net/npm/vega@6.0.0"></script>
+  <script src="https://cdn.jsdelivr.net/npm/vega-lite@6.1.0"></script>
+  <script src="https://cdn.jsdelivr.net/npm/vega-embed@6.29.0"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/html-to-image@1.11.11/dist/html-to-image.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/howler/2.2.4/howler.min.js"></script>
+  
+  <link rel="stylesheet" href="Design.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" type="text/css" />
+  <link rel="stylesheet" href="https://unpkg.com/lucide@latest/dist/umd/lucide.css" type="text/css" />
+  
+  <script src="./scripts/MiniChart.js"></script> 
+  <script src="./scripts/MainChart.js"></script>
+  <script src="./scripts/PredictionChart.js"></script>
+  <script src="./scripts/AllCharts.js"></script>
+  <script src="./scripts/StockKPIChart.js"></script>
+  <script type="module" src="./scripts/ChatService.js"></script>
+  <script type="module" src="./scripts/MainScreenBindings.js"></script>
+  
+  <style>
+    @import url('https://unpkg.com/lucide-static@latest/font/Lucide.css');
+  </style>
+</head>
+<body>
+  <div id="selection-box"></div>
+  <div id="overlay" class="overlay"></div>
+  
+  <div class="container">
+    <div class="main" id="capture-area">    <div class="main-stock" id="main">
+      <div class="button-bar">
+        <button class="back-button" onclick="handleBackButton()">
+          <i class="fa-solid fa-arrow-left"></i>
+        </button>
+        <button class="train-button" onclick="showTrainingArea()">
+          <i class="fa-solid fa-dumbbell"></i>
+        </button>
+      </div>
+        
+        <div class="dashboard-container">
+          <div class="vconcat-area">
+            <div id="mainVl"></div>
+          </div>
+          <div class="right-panel">
+            <div class="right-panel-top">
+              <div class="kpi-chart-container" id="kpi-chart"></div>
+                            <div class="stock-selection" id="stock-selection">
+                <div class="search-bar-stock">
+                  <input id="search-text" type="text" placeholder="Search stock here!">
+                </div>
+                <dl id="stock-list">
+                </dl>
+              </div>
+            </div>
+            <div class="allcharts-area">
+              <div id="combinedVl"></div>
+            </div>
+          </div>
+        </div>
+        
+        <div id="predictionStock"></div>
+        <button class="action-button" onclick="window.toggleActualData()" id="showActualData" style="display: none;">
+          <i class="fa-solid fa-chart-line"></i>
+          View unknown data points
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="side-pannel">
+    <div class="chat-box">
+      <div class="chat"> 
+        <ul id="chatty-daddy-chat"> 
+        </ul>  
+      </div>
+      <div class="lasso-bar">
+        <button id="lasso-capture" aria-label="Capture area">
+          <div class="fa-solid fa-camera"></div>
+        </button>
+      </div>
+      <div class="search-bar-chat">
+        <div class="input-container">
+          <input
+            type="text"
+            id="chat-input"
+            placeholder="Write a prompt or just talk"
+          />
+          <button id="send-button" aria-label="Send message">
+            <i class="fa-solid fa-paper-plane"></i>
+          </button>
+        </div>
+      </div>
+      <button
+        id="robo-button"
+        aria-pressed="false"
+        aria-label="Toggle voice input"
+      >
+        <i class="fa-solid fa-robot"></i>
+      </button>
+    </div>
+  </div>
+  
+  <script>
+    function unixToDate(unixTimestamp) {
+      const date = new Date(unixTimestamp);
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      const hours = String(date.getHours()).padStart(2, '0');
+      const minutes = String(date.getMinutes()).padStart(2, '0');
+      const seconds = String(date.getSeconds()).padStart(2, '0');
+      return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+    }    function getField(item, fieldNames, defaultValue = null) {
+      for (const fieldName of fieldNames) {
+        const value =
+          item?.[fieldName] ??
+          item?.datum?.[fieldName] ??
+          item?.datum?.datum?.[fieldName];
+        if (value !== undefined && value !== null) {
+          return value;
+        }
+      }
+      return defaultValue;
+    }
+    
+    let startingPoint = "";
+    let endingPoint = "";
+
+    window.stocks = [
+      {label: "Uber", title: "Overview of Uber stocks" , id:"uber-chart", url: "https://raw.githubusercontent.com/Tozorro/Bachelor_datasets/refs/heads/main/UBER.csv"},
+      {label: "Google", title: "Overview of Google stocks", id: "google-chart", url: "https://raw.githubusercontent.com/Tozorro/Bachelor_datasets/main/GOOGL.csv"},
+      {label: "Apple", title: "Overview of Apple stocks", id: "apple-chart", url: "https://raw.githubusercontent.com/Tozorro/Bachelor_datasets/main/AAPL.csv"},
+      {label: "Tesla", title:"Overview of Tesla stocks" ,id: "tesla-chart", url: "https://raw.githubusercontent.com/Tozorro/Bachelor_datasets/main/TSLA.csv"},
+      {label: "Netflix", title:"Overview of Netflix stocks" ,id: "netflix-chart", url: "https://raw.githubusercontent.com/Tozorro/Bachelor_datasets/refs/heads/main/NFLX.csv"},
+      {label: "Facebook", title:"Overview of Facebook stocks" ,id: "facebook-chart", url: "https://raw.githubusercontent.com/Tozorro/Bachelor_datasets/refs/heads/main/FB.csv"},
+      {label: "Disney", title:"Overview of Disney stocks" ,id: "disney-chart", url: "https://raw.githubusercontent.com/Tozorro/Bachelor_datasets/refs/heads/main/DIS.csv"}
+    ];
+    
+    let selectedStock = "";
+
+    function filterStockList() {
+      const query = document.getElementById("search-text").value.toLowerCase();
+      const filteredStocks = window.stocks.filter(stock => stock.label.toLowerCase().includes(query));
+      renderStockList(filteredStocks);
+    }
+
+    function renderStockList(stocksToRender) {
+      const listContainter = document.getElementById("stock-list");
+      listContainter.innerHTML = "";
+      stocksToRender.forEach((stock, index) => {
+        const li = document.createElement("li");
+        li.classList.add("stock-item-selection");
+        li.dataset.url = stock.url;
+        li.dataset.label = stock.label;
+        li.id = stock.label;
+        li.innerHTML = `
+          <div class="stock-item">
+            <label class="stock-item-label" for="${stock.id}">${stock.label}</label>
+            <div id="${stock.id}" class="stock-item-chart"></div>
+          </div>
+        `;        li.addEventListener("click", () => {
+          document.querySelectorAll(".stock-item-selection").forEach(el => el.classList.remove("selected"));
+          li.classList.add("selected");
+          renderMainChart(stock.url, stock.title); 
+          selectedStock = stock.label;
+          window.selectedStock = stock.label;
+          renderAllChartsOverview(stock.label);
+          if (window.updateKPIForSelectedStock) {
+            window.updateKPIForSelectedStock();
+          }
+        });
+        listContainter.appendChild(li);
+        renderStockMiniChart(stock.id, stock.url);
+      });
+    }
+    
+    renderStockList(stocks);
+    renderAllChartsOverview("Uber");
+    
+    const mainGraph = document.getElementById("mainVl");
+    const combinedGraph = document.getElementById("combinedVl");
+    
+    if (mainGraph) {
+      mainGraph.style.display = "block";
+    }
+    
+    if (combinedGraph) {
+      combinedGraph.style.display = "block";
+    }
+    
+    setTimeout(() => {
+      const uberStock = window.stocks.find(stock => stock.label === "Uber");
+      if (uberStock) {
+        document.querySelectorAll(".stock-item-selection").forEach(el => el.classList.remove("selected"));
+        renderMainChart(uberStock.url, uberStock.title);
+        selectedStock = uberStock.label;
+        window.selectedStock = uberStock.label;
+        
+        if (window.updateKPIForSelectedStock) {
+          window.updateKPIForSelectedStock();
+        }
+        
+        const li = document.getElementById(uberStock.label);
+        if (li) {
+          li.classList.add("selected");
+        }
+          const mainGraphCheck = document.getElementById("mainVl");
+        if (mainGraphCheck) {
+          mainGraphCheck.style.display = "block";
+        }
+      }    }, 100);
+    
+    document.getElementById("search-text").addEventListener("input", filterStockList);
+    
+    function isDisplayingTrainingArea() {
+      const predictionStock = document.getElementById("predictionStock");
+      return predictionStock.style.display === "block";
+    }
+    
+    function handleBackButton() {
+      if (isDisplayingTrainingArea()) {
+        showMainArea();
+      }
+    }
+    
+    function showMainArea() {
+      const stockSelectionPanel = document.getElementById("stock-selection");
+      const mainChartArea = document.getElementById("mainVl");
+      const allChartsArea = document.getElementById("combinedVl");
+      const predictionArea = document.getElementById("predictionStock");
+      const backButton = document.querySelector(".back-button");
+      const trainButton = document.querySelector(".train-button");
+      const actualDataButton = document.getElementById("showActualData");
+      const dashboardContainer = document.querySelector(".dashboard-container");
+
+      stockSelectionPanel.style.display = "block";
+      predictionArea.style.display = "none";
+      actualDataButton.style.display = "none";
+      trainButton.style.display = "block";
+      backButton.style.display = "none";
+      
+      if (dashboardContainer) {
+        dashboardContainer.style.display = "flex";
+      }
+
+      mainChartArea.style.display = "block";
+      allChartsArea.style.display = "block";
+      
+      setTimeout(() => {
+        window.dispatchEvent(new Event('resize'));
+          if (window.selectedStock) {
+          renderAllChartsOverview(window.selectedStock);
+        }
+        
+        updateAllCharts();
+      }, 150);
+    }
+    
+    async function showTrainingArea() {
+      const stockSelectionPanel = document.getElementById("stock-selection");
+      const mainChartArea = document.getElementById("mainVl");
+      const allChartsArea = document.getElementById("combinedVl");
+      const predictionArea = document.getElementById("predictionStock");
+      const backButton = document.querySelector(".back-button");
+      const trainButton = document.querySelector(".train-button");
+      const actualDataButton = document.getElementById("showActualData");
+      const dashboardContainer = document.querySelector(".dashboard-container");
+
+      backButton.style.display = "block";
+      stockSelectionPanel.style.display = "none";
+      mainChartArea.style.display = "none";
+      allChartsArea.style.display = "none";
+      predictionArea.style.display = "block";
+      trainButton.style.display = "none";
+      actualDataButton.style.display = "block";
+      
+      if (dashboardContainer) {
+        dashboardContainer.style.display = "none";
+      }
+
+      predictionArea.style.width = "100%";
+      predictionArea.style.height = "calc(100vh - 100px)";
+      
+      window.dispatchEvent(new Event('resize'));
+      await new Promise(resolve => setTimeout(resolve, 50));
+
+      try {
+        await PredictionChart();
+          if (window.predictionChartView) {
+          window.predictionChartView.run();
+        }
+      } catch (error) {
+        console.error('Failed to initialize prediction chart:', error);
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+      let isSelecting = false;
+      let startX, startY;
+      let selectionBox = document.getElementById("selection-box");
+      let capturedImage = null;
+
+      document.getElementById('lasso-capture').addEventListener('click', () => {
+        takeScreenshot();
+      });
+
+      document.querySelector('.overlay').addEventListener('touchstart', function (e) {
+        const touch = e.touches[0];
+        if (!touch) return;
+
+        this.style.pointerEvents = 'none';
+        const underlyingElement = document.elementFromPoint(touch.clientX, touch.clientY);
+        this.style.pointerEvents = 'auto';
+
+        if (underlyingElement && underlyingElement !== this) {
+          const mouseDownEvent = new MouseEvent('mousedown', {
+            bubbles: true,
+            cancelable: true,
+            view: window,
+            clientX: touch.clientX,
+            clientY: touch.clientY
+          });
+          underlyingElement.dispatchEvent(mouseDownEvent);
+        }
+      }, { passive: false });
+
+      document.querySelector('.overlay').addEventListener('touchend', function (e) {
+        const touch = e.changedTouches[0];
+        if (!touch) return;
+
+        this.style.pointerEvents = 'none';
+        const underlyingElement = document.elementFromPoint(touch.clientX, touch.clientY);
+        this.style.pointerEvents = 'auto';
+
+        if (underlyingElement && underlyingElement !== this) {
+          const mouseUpEvent = new MouseEvent('mouseup', {
+            bubbles: true,
+            cancelable: true,
+            view: window,
+            clientX: touch.clientX,
+            clientY: touch.clientY
+          });          underlyingElement.dispatchEvent(mouseUpEvent);
+        }
+      }, { passive: false });
+      
+      function getPoint(e) {
+        if (e.touches && e.touches.length > 0) {
+          return {x: e.touches[0].pageX, y: e.touches[0].pageY};
+        } else {
+          return {x: e.pageX, y: e.pageY};
+        }
+      }
+      
+      function generateLassoPrompt(selectedStock, startingPoint, endingPoint) {
+        if (selectedStock !== "") {
+          return `Can you tell me more about the stock of ${selectedStock} between this date ${startingPoint.Date} and this date ${endingPoint.Date} keep it simple and within 100 words. The dates are in unix and dont mention anything about the prompt. Only talk about what happened inbetween the two provided dates.`;
+        } else {
+          return `Can you tell me more about the stock of ${startingPoint.symbol} between this date ${startingPoint.date} and this date ${endingPoint.date} keep it simple and within 100 words. The dates are in unix and dont mention anything about the prompt. Only talk about what happened inbetween the two provided dates.`;
+        }
+      }
+
+      function DownHandler(e) {
+        e.preventDefault();
+
+        const fakeDate = Date.now();
+        window.startingPoint = {
+          Date: fakeDate,
+          symbol: window.selectedStock
+        };
+
+        const point = getPoint(e);
+        isSelecting = true;
+        startX = point.x;
+        startY = point.y;
+        selectionBox.style.left   = startX + 'px';
+        selectionBox.style.top    = startY + 'px';
+        selectionBox.style.width  = '0px';
+        selectionBox.style.height = '0px';
+        selectionBox.style.display = 'block';        document.addEventListener('mousemove', MoveHandler);
+        document.addEventListener('mouseup',   UpHandler);
+        document.addEventListener('touchmove', MoveHandler, {passive: false});
+        document.addEventListener('touchend',  UpHandler, {passive: false});
+      }
+      
+      function takeScreenshot() {
+        document.getElementById('lasso-capture').classList.add('capturing');
+        document.body.style.cursor = 'crosshair'; 
+        document.addEventListener('mousedown', DownHandler); 
+        document.getElementById('overlay').style.display = 'block';
+        document.addEventListener('touchstart', DownHandler, {passive: false});
+        
+        document.querySelector('.overlay').addEventListener('mousedown', function (e) {
+          this.style.pointerEvents = 'none';
+          const underlyingElement = document.elementFromPoint(e.clientX, e.clientY);
+          this.style.pointerEvents = 'auto';
+
+          if (underlyingElement && underlyingElement !== this) {
+            const mouseDownEvent = new MouseEvent('mousedown', {
+              bubbles: true,
+              cancelable: true,
+              view: window,
+              clientX: e.clientX,
+              clientY: e.clientY
+            });
+
+            underlyingElement.dispatchEvent(mouseDownEvent);
+          }
+        });
+        
+        document.querySelector('.overlay').addEventListener('mouseup', function (e) {
+          this.style.pointerEvents = 'none';
+          const underlyingElement = document.elementFromPoint(e.clientX, e.clientY);
+          this.style.pointerEvents = 'auto';
+          
+          if (underlyingElement && underlyingElement !== this) {
+            const mouseUpEvent = new MouseEvent('mouseup', {
+              bubbles: true,
+              cancelable: true,
+              view: window,
+              clientX: e.clientX,
+              clientY: e.clientY
+            });            underlyingElement.dispatchEvent(mouseUpEvent);
+          }
+        });
+      }
+      
+      function MoveHandler(e) {
+        if (!isSelecting) return;
+        e.preventDefault();
+
+        const point = getPoint(e);
+        let width  = Math.abs(point.x - startX);
+        let height = Math.abs(point.y - startY);
+
+        selectionBox.style.left   = Math.min(point.x, startX) + 'px';
+        selectionBox.style.top    = Math.min(point.y, startY) + 'px';
+        selectionBox.style.width  = width + 'px';
+        selectionBox.style.height = height + 'px';
+      }
+
+      function UpHandler(e) {
+        e.preventDefault();
+
+        const fakeEndDate = Date.now();
+        window.endingPoint = {
+          Date: fakeEndDate,
+          symbol: window.selectedStock
+        };
+
+        isSelecting = false;
+        document.removeEventListener('mousemove', MoveHandler);
+        document.removeEventListener('mouseup',   UpHandler);
+        document.removeEventListener('mousedown', DownHandler);
+        document.removeEventListener('touchmove', MoveHandler);
+        document.removeEventListener('touchend',  UpHandler);
+        document.removeEventListener('touchstart',DownHandler);
+        document.getElementById('overlay').style.display = 'none';
+        document.body.style.cursor = 'default';
+        document.getElementById('lasso-capture').classList.remove('capturing');
+
+        const x = parseInt(selectionBox.style.left);
+        const y = parseInt(selectionBox.style.top);
+        const w = parseInt(selectionBox.style.width);
+        const h = parseInt(selectionBox.style.height);
+
+        const capturedTarget = document.getElementById('capture-area');
+        
+        html2canvas(capturedTarget, {
+          scrollX: -window.scrollX,
+          scrollY: -window.scrollY,
+          windowWidth:  document.documentElement.clientWidth,
+          windowHeight: document.documentElement.clientHeight,
+          scale:        window.devicePixelRatio
+        }).then(canvas => {
+          const rect  = capturedTarget.getBoundingClientRect();
+          const ratio = window.devicePixelRatio;
+
+          const croppedX = (x - rect.left) * ratio;
+          const croppedY = (y - rect.top)  * ratio;
+          const croppedW = w * ratio;
+          const croppedH = h * ratio;
+          
+          const croppedCanvas = document.createElement('canvas');
+          croppedCanvas.width  = croppedW;
+          croppedCanvas.height = croppedH;
+
+          const ctx = croppedCanvas.getContext('2d', { willReadFrequently: true });
+          ctx.drawImage(
+            canvas,
+            croppedX, croppedY, croppedW, croppedH,
+            0,         0,        croppedW, croppedH
+          );
+          
+          const img = croppedCanvas.toDataURL();          const userInput = document.getElementById('chat-input').value.trim();
+          const lassoPrompt = generateLassoPrompt(window.selectedStock, window.startingPoint, window.endingPoint);
+          const fullPrompt = [lassoPrompt, userInput].filter(Boolean).join("\n\n");
+          window.sendImageData(img, fullPrompt);
+          selectionBox.style.display = 'none';
+        });
+      }
+    });
+
+    function updateAllCharts() {
+      function updateView(view) {
+        if (!view) return;
+        
+        try {
+          const container = view.container();
+          if (!container) return;
+          const bounds = container.getBoundingClientRect();
+          
+          view.initialize()
+            .width(bounds.width)
+            .height(bounds.height)
+            .run();
+          
+          view.resize();
+        } catch (error) {
+          console.warn('Error updating view:', error);
+        }
+      }
+
+      const charts = [
+        window.predictionChartView,
+        window.mainChartView,
+        window.combinedChartView,
+        ...(window.miniChartViews || [])
+      ].filter(Boolean);
+
+      charts.forEach(updateView);
+      const allChartsContainer = document.getElementById('combinedVl');
+      if (allChartsContainer) {
+        const vegaView = allChartsContainer.querySelector('.vega-embed');
+        if (vegaView && vegaView.__vegaEmbed && vegaView.__vegaEmbed.view) {
+          updateView(vegaView.__vegaEmbed.view);
+        }
+      }
+    }
+  </script>
+</body>
+</html>
+
+

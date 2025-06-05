@@ -1,0 +1,65 @@
+To run the system you need to use your IPV4 address in settings, such that it is possible to run the live server and to properly use the APIs (i.e, OpenAI-ChatGPT, STT, TTS).
+
+
+
+
+1. Change the`.env` file (create one under `\backend\config` or anywhere, if you don't have one) where you have to add the following:
+
+`
+# OpenAI API key
+OPENAI_API_KEY=your_openai_api_key_here
+
+# LLM Model (optional, since it defaults to gpt-4o-mini) - check ConversationHandler.js, specifically const LLMModel
+LLM_MODEL=gpt-4o-mini
+
+# Server Configuration (optional, since it defaults to 3000) - check Server.js, specifically const port
+PORT=3000
+`
+
+P.S.: You can alternatively use environmental tables to have your OPENAI_API_KEY there, since it is more secure.
+
+
+
+
+2. Install dependencies in package.json with `npm install` 
+
+
+
+
+3. SKIP THIS STEP IF YOU KNOW HOW TO GET YOUR IPV4.
+- Open a new command line by pressing the windows button or opening a terminal.
+- type `ipconfig`
+- Look for Wireless LAN adapter Wi-Fi:
+- Then get your IPv4 Address, it should look like this: 
+`IPv4 Address. . . . . . . . . . . : 123.456.x.xxx`
+
+
+
+
+4. Files needing manual change:
+- setting.json (Your IPV4 needed)
+- ApiClient.js (Your IPV4 needed or website url)
+
+Overall, just change to your IPV4 in both places in the server url before the port `:3000`. 
+
+
+
+
+
+5. Then to run it, just type `npm start` in the terminal.
+
+6. Connect to the server on port 8000. Ala `http://YOURIPV4HERE:8000/MainScreen.html`. Where you type your wi-fi IPV4 instead of `YOURIPV4HERE`.
+
+The server URL will be shown on the terminal too. You can also use localhost to run it on desktop, but you need both file changes to access the functionalities such as speech response, text response and LLM tool calling.
+
+
+
+
+
+Below we have some more info, in case it is needed. :D
+
+On iPad it runs only on Safari, and it was not possible to be tested on other tablet devices.
+
+We have experienced some issues using the school network, but mainly due to an antivirus blocking the connection from another device. And only one member out of three experienced that (the only one with an antivirus).
+
+P.S.: A cool thing is that you can do a system prompt to guide the LLM into the user responses. For example, in the `systemPrompt.txt` we gave small set of instructions and context to the LLM. So that the LLM itself could know about features, have a "personality". If too many instructions are given, and specially if they are unclear or conflicting, that can confuse the LLM and increase the non-determinism of it. Affecting even toolcalling and responses not making sense. Therefore, just for a heads-up, since it is also a prompt in itself. Be mindful of the instructions you give.

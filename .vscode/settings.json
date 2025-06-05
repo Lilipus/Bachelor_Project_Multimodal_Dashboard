@@ -1,0 +1,15 @@
+{
+  "liveServer.settings.port": 8000,
+  "liveServer.settings.root": "/public",
+  "liveServer.settings.proxy": {
+    "enable": true,
+    "baseUri": "/api",
+    // use your own wi-fi ipv4 address here before instead of IPV4HERE to host the server
+    // This setups a proxy to the local server running on port 3000
+    // Make sure to run the server with `npm run dev` or `npm start`, I just use `npm start` to run it on the Desktop.
+    // It is possible that the iPad/tablet can have the vegalite graphs pushing the dimensions and causing visual inconsistency,
+    // since the dimensions can be widely different. We used both an iPad Pro 2021 and a normal iPad 2020, but the system
+    // also works on Desktop - we used Windows.
+    "proxyUri": "http://IPV4HERE:3000/api"
+  }
+}

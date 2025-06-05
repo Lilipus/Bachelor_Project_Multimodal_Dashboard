@@ -1,0 +1,44 @@
+.vscode/
+    settings.json
+backend/
+    config/
+        .env
+        systemPrompt.txt
+    main/
+        Server.js    
+        llm/
+            ConversationHandler.js
+            UserInputHandler.js
+    tools/
+        ToolDefinitions.js
+        ToolExecutor.js    
+        services/
+            STT.js
+            TTS.js
+    storage/
+        data/
+            audioResponse/
+            screenshotImages/
+        handlers/
+            ConversationMemory.js
+            ScreenshotStorageHandler.js
+node_modules/
+public/
+    img/
+        .gitkeep
+        scripts/
+            AllCharts.js
+            ChatService.js
+            ApiClient.js
+            StockKPIChart.js
+            MainChart.js
+            MainScreenBindings.js
+            MiniChart.js
+            PredictionChart.js
+    Design.css
+    index.html
+    MainScreen.html
+package-lock.json
+package.json
+.gitignore
+README
